@@ -7,19 +7,23 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebAppDeleite.Attributes;
 using WebAppDeleite.Models;
+using WebAppDeleite.Tools;
 
 namespace WebAppDeleite.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [ApiKey]
+   // [ApiKey]
     public class UsersController : ControllerBase
     {
         private readonly DeleiteContext _context;
 
+        public Crypto MYCrypto { get; set; }
+
         public UsersController(DeleiteContext context)
         {
             _context = context;
+            MYCrypto = new Tools.Crypto();
         }
 
         // GET: api/Users
@@ -50,7 +54,22 @@ namespace WebAppDeleite.Controllers
 
             return user;
         }
+        [HttpGet("ValidateUserLogin")]
+        public async Task<ActionResult<User>> ValidateUserLogin(string pUserName, string pPassword)
+        {
+            // encriptalas contraseñas y las valida en Bd 
+            string EncriptedPassword = MYCrypto.EncriptarEnUnSentido(pPassword);
 
+
+
+            var user = await _context.Users.SingleOrDefaultAsync(e => e.Email == pUserName && e.LoginPassword == EncriptedPassword);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return user;
+        }
         // PUT: api/Users/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
@@ -82,15 +101,14 @@ namespace WebAppDeleite.Controllers
             return NoContent();
         }
 
-        // POST: api/Users
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+      
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
         {
-          if (_context.Users == null)
-          {
-              return Problem("Entity set 'DeleiteContext.Users'  is null.");
-          }
+            string EncriptedPassword = MYCrypto.EncriptarEnUnSentido(user.LoginPassword);
+
+            user.LoginPassword = EncriptedPassword;
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
